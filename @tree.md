@@ -4,6 +4,7 @@
 /mnt/d/lab/resource-contention
 ├── .archive
 │   ├── concurrency_race_condition_demo.plan.md
+│   ├── log_ef_raw_sql.plan.md
 │   └── redis_concurrency_demo.plan.md
 ├── @tree.md
 ├── .gitignore

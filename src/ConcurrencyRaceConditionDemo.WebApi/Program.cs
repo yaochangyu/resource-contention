@@ -11,7 +11,9 @@ builder.WebHost.UseUrls("http://localhost:5000");
 builder.Services.AddOpenApi();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
+           .LogTo(Console.WriteLine, new[] { DbLoggerCategory.Database.Command.Name }, Microsoft.Extensions.Logging.LogLevel.Information)
+           .EnableSensitiveDataLogging());
 
 // 註冊 Redis 連線服務
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp => 
