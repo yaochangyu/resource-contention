@@ -19,10 +19,6 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp => 
     ConnectionMultiplexer.Connect("127.0.0.1:6379"));
 
-// 建立非同步寫入 SQL Server 的 Channel 佇列，限制為單一消費者
-var dbUpdateChannel = System.Threading.Channels.Channel.CreateUnbounded<int>(
-    new System.Threading.Channels.UnboundedChannelOptions { SingleReader = true });
-
 var app = builder.Build();
 
 // Ensure Database is created and seeded (先刪除後建立，確保結構變更時能順利更新 schema)
@@ -32,31 +28,6 @@ using (var scope = app.Services.CreateScope())
     db.Database.EnsureDeleted();
     db.Database.EnsureCreated();
 }
-
-// 啟動背景同步 SQL Server 消費端，單執行緒處理以防 DB 併發衝突，並做資料庫減壓
-_ = Task.Run(async () =>
-{
-    var reader = dbUpdateChannel.Reader;
-    while (await reader.WaitToReadAsync())
-    {
-        var latestPoints = await reader.ReadAsync();
-        try
-        {
-            using var scope = app.Services.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            
-            await db.Members
-                .Where(m => m.Id == 1)
-                .ExecuteUpdateAsync(s => s.SetProperty(m => m.Points, latestPoints));
-            
-            Console.WriteLine($"[背景同步] 已將 SQL Server 點數同步更新為：{latestPoints}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[背景同步] 寫入資料庫時出錯：{ex.Message}");
-        }
-    }
-});
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -68,6 +39,14 @@ app.MapGet("/api/points", async (AppDbContext db) =>
 {
     var member = await db.Members.FindAsync(1);
     return member != null ? Results.Ok(member) : Results.NotFound();
+});
+
+app.MapGet("/api/points/redis", async (IConnectionMultiplexer redis) =>
+{
+    var dbRedis = redis.GetDatabase();
+    var val = await dbRedis.StringGetAsync("member:1:points");
+    int points = val.HasValue ? (int)val : 0;
+    return Results.Ok(new { Id = 1, Points = points });
 });
 
 app.MapPost("/api/points/reset", async (int points, AppDbContext db, IConnectionMultiplexer redis) =>
@@ -158,9 +137,6 @@ app.MapPost("/api/points/deduct-redis", async (IConnectionMultiplexer redis) =>
     {
         return Results.BadRequest("Points run out");
     }
-
-    // 將最新剩餘點數寫入 Channel，讓單執行緒背景工作處理非同步寫入 SQL Server
-    dbUpdateChannel.Writer.TryWrite(result);
 
     return Results.Ok(new { RemainingPoints = result });
 });

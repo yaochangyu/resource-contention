@@ -58,12 +58,12 @@ WHERE Id = 1 AND Points > 0;
 
 ---
 
-## 解決方案：Redis 快取原子扣點（非同步背景同步）
+## 解決方案：純 Redis 儲存與原子扣點
 
-在面臨超大規模流量（例如秒殺搶購、搶票）時，直接併發存取資料庫會導致資料庫連線池塞滿與效能雪崩。此時可使用 **Redis 作為扣點核心**：
+在面臨超大規模流量（例如秒殺搶購、搶票）且扣點結果與資金無關的場景下，可以採用純 Redis 儲存方案：
 
-* **原理**：將點數餘額存放在讀寫效能極高的記憶體資料庫 Redis 中。當請求進來時，API 執行 **Lua 腳本** 在 Redis 端以單執行緒原子化地完成「讀取 -> 判斷 -> 扣除」操作。
-* **背景同步**：Redis 扣減成功後，API 即刻回傳 `200 OK`，並將最新的餘額推入 .NET 的記憶體 Channel 佇列中。背景由單執行緒服務依序讀取佇列並寫入 SQL Server，不僅徹底隔絕了資料庫併發競爭，也將資料庫的負載減至最輕，保證資料的最終一致性（Eventual Consistency）。
+* **原理**：將點數餘額存放在讀寫效能極高的記憶體資料庫 Redis 中，作為該模式的唯一資料來源（Single Source of Truth）。當請求進來時，API 執行 **Lua 腳本** 在 Redis 端以單執行緒原子化地完成「讀取 -> 判斷 -> 扣除」操作。
+* **特性**：因為不需要異步同步回資料庫，徹底避免了多 Pod 部署時背景寫回產生的時序錯亂覆蓋（Out-of-Order）問題，架構最為簡潔且效能最高。
 
 ---
 
@@ -91,14 +91,12 @@ WHERE Id = 1 AND Points > 0;
 
 1. **更嚴謹的資源競爭雙重判定**：
    * 測試工具若只檢查「透支超扣（成功次數 > 初始額度）」，當初始餘額充足（例如 500 點）而併發請求較少（例如 50 次）時，便會漏判資源競爭。
-   * 因此，本工具改用**雙重條件判定**：只要滿足 **「成功次數 > 初始點數」**（透支超扣）或 **「成功次數 != 資料庫實際扣除點數」**（Lost Update / 帳目不合），即判定為發生資源競爭。這能極其清晰地展示出在 Unsafe 模式下「放行 50 次，但資料庫只扣了 2 點（其餘 48 次被更新覆蓋）」的遺失更新現象。
+   * 因此，本工具改用**雙重條件判定**：只要滿足 **「成功次數 > 初始點數」**（透支超扣）或 **「成功次數 != 實際扣除點數」**（Lost Update / 帳目不合），即判定為發生資源競爭。這能極其清晰地展示出在 Unsafe 模式下「放行 50 次，但實際只扣了 2 點（其餘 48 次被更新覆蓋）」的遺失更新現象。
 2. **EF Core 原始 SQL 即時日誌記錄**：
    * Web API 已配置 EF Core 的 `.LogTo(Console.WriteLine)` 與 `.EnableSensitiveDataLogging()`。
    * 當您啟動 Web API 服務並進行測試時，可以直接在終端機（Console）中實時觀看到底層生成並執行的真實參數化 SQL 語句（如原子更新 `UPDATE [Members] SET [Points] = [Points] - 1 WHERE [Id] = 1 AND [Points] > 0` 以及參數具體數值），非常利於教學展示。
 3. **Rider / Visual Studio 設計器編輯支援**：
    * 本專案的 WinForm UI 配置已全面重構為與 IDE 設計檢視器相容的標準 `Form1.Designer.cs` 排版，您可以在 Rider 或 VS 中直接開啟設計器介面進行拖拉或屬性編輯。
-4. **序列化背景寫回防範時序錯亂**：
-   * Redis 扣點後的資料庫同步採用單執行緒的背景佇列進行循序處理（`await reader.ReadAsync()`），確保寫入資料庫的點數順序與 Redis 扣除順序完全一致，避免背景平行寫入造成 Out-of-Order 的覆蓋問題。
 
 ---
 
@@ -108,7 +106,7 @@ WHERE Id = 1 AND Points > 0;
   * `POST /api/points/reset?points=X`：重設 SQL Server 與 Redis 中的點數。
   * `POST /api/points/deduct-unsafe`：不安全扣點（SELECT -> Delay 50ms -> UPDATE），模擬並重現超扣。
   * `POST /api/points/deduct-safe`：安全扣點（使用 EF Core `ExecuteUpdateAsync` 翻譯為原子更新 SQL）。
-  * `POST /api/points/deduct-redis`：Redis 快取扣點（Lua 原子扣點 + Channel 背景非同步序列化寫入資料庫）。
+  * `POST /api/points/deduct-redis`：Redis 原子扣點（Lua 原子扣點，純 Redis 儲存，不回寫 SQL Server）。
   * `POST /api/points/deduct-pessimistic`：悲觀鎖扣點（SQL 交易搭配 `WITH (UPDLOCK, HOLDLOCK)` 行級鎖定強制排隊）。
   * `POST /api/points/deduct-optimistic`：樂觀鎖扣點（透過 `[ConcurrencyCheck]` 版本號檢查，衝突時丟出並處理 `DbUpdateConcurrencyException`）。
 * **`src/ConcurrencyRaceConditionDemo.WinFormClient`**：WinForm 測試客戶端。可設定初始額度與併發請求數，並支援選擇五種併發防禦模式進行壓測與統計。

@@ -125,17 +125,12 @@ public partial class Form1 : Form
 
         Log($"併發請求發送完畢，耗時 {duration.TotalMilliseconds:F2} ms。");
 
-        if (isRedis)
-        {
-            Log("等待背景非同步同步 SQL Server (200ms)...");
-            await Task.Delay(200);
-        }
-
-        // 3. 查詢資料庫最終點數
+        // 3. 查詢最終點數餘額 (Redis 模式下直接查詢 Redis，其餘模式查詢資料庫)
         int finalPoints = 0;
         try
         {
-            var response = await _httpClient.GetAsync("/api/points");
+            string queryUrl = isRedis ? "/api/points/redis" : "/api/points";
+            var response = await _httpClient.GetAsync(queryUrl);
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadAsStringAsync();
@@ -159,7 +154,7 @@ public partial class Form1 : Form
         Log($"成功扣點次數：{successCount}");
         Log($"被拒絕次數：{failCount}");
         Log($"連線錯誤次數：{errorCount}");
-        Log($"資料庫最終餘額：{finalPoints}");
+        Log($"{(isRedis ? "Redis" : "資料庫")}最終餘額：{finalPoints}");
         Log($"理論應扣點數：{Math.Min(initialQuota, requestCount)}");
         Log($"實際扣除點數：{pointsDeducted}");
 
@@ -181,8 +176,8 @@ public partial class Form1 : Form
             }
             if (isLostUpdate)
             {
-                summaryText += $"帳目不合！成功扣點 {successCount} 次，但 DB 實際僅扣除 {pointsDeducted} 點。";
-                Log($"⚠️ 發生遺失更新（Lost Update）！成功 {successCount} 次但 DB 實際僅扣除 {pointsDeducted} 點，有 {successCount - pointsDeducted} 次更新被覆蓋！");
+                summaryText += $"帳目不合！成功扣點 {successCount} 次，但實際僅扣除 {pointsDeducted} 點。";
+                Log($"⚠️ 發生遺失更新（Lost Update）！成功 {successCount} 次但 {(isRedis ? "Redis" : "DB")} 實際僅扣除 {pointsDeducted} 點，有 {successCount - pointsDeducted} 次更新被覆蓋！");
             }
         }
         else

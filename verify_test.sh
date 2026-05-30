@@ -19,13 +19,20 @@ trap cleanup EXIT
 
 # 等待 Web API 啟動完成
 echo "等待 API 啟動..."
-for i in {1..10}; do
+API_READY=false
+for i in {1..15}; do
   if curl -s "$API_URL/api/points" > /dev/null; then
     echo "API 已就緒！"
+    API_READY=true
     break
   fi
   sleep 1
 done
+
+if [ "$API_READY" = false ]; then
+  echo "❌ 錯誤: API 啟動超時，無法連線至 $API_URL"
+  exit 1
+fi
 
 run_concurrency_test() {
   local endpoint=$1
@@ -60,21 +67,20 @@ run_concurrency_test() {
     wait "$pid" 2>/dev/null || true
   done
 
-  # 如果是 Redis 模式，稍等 0.5 秒讓背景同步完成
-  if [ "$endpoint" = "/api/points/deduct-redis" ]; then
-    echo "等待背景非同步同步 SQL Server..."
-    sleep 0.5
-  fi
-  
   # 3. 統計狀態碼
   local success_count=$(grep -c "200" "$temp_file" || true)
   local fail_count=$(grep -c "400" "$temp_file" || true)
   rm -f "$temp_file"
 
-  # 4. 撈取最終資料庫點數
-  local db_result=$(curl -s "$API_URL/api/points")
-  # 解析 JSON 欄位 "points" (簡單用 grep -o)
-  local final_points=$(echo "$db_result" | grep -o '"points":[0-9\-]*' | cut -d':' -f2 || echo "0")
+  # 4. 撈取最終點數餘額 (Redis 模式查詢 Redis，其餘模式查詢資料庫)
+  local final_points
+  if [ "$endpoint" = "/api/points/deduct-redis" ]; then
+    local redis_result=$(curl -s "$API_URL/api/points/redis")
+    final_points=$(echo "$redis_result" | grep -o '"points":[0-9\-]*' | cut -d':' -f2 || echo "0")
+  else
+    local db_result=$(curl -s "$API_URL/api/points")
+    final_points=$(echo "$db_result" | grep -o '"points":[0-9\-]*' | cut -d':' -f2 || echo "0")
+  fi
 
   # 5. 輸出報告
   echo "測試結果統計:"
@@ -82,7 +88,11 @@ run_concurrency_test() {
   echo "  - 總請求數: $request_count"
   echo "  - 成功扣除次數 (200 OK): $success_count"
   echo "  - 被拒絕次數 (400 Bad Request): $fail_count"
-  echo "  - 資料庫最終餘額: $final_points"
+  if [ "$endpoint" = "/api/points/deduct-redis" ]; then
+    echo "  - Redis 最終餘額: $final_points"
+  else
+    echo "  - 資料庫最終餘額: $final_points"
+  fi
 
   if [ "$success_count" -gt "$initial_quota" ]; then
     echo "  ⚠️ 驗證結果: [失敗] 發生資源競爭！超扣數量: $(($success_count - $initial_quota)) 筆！"
