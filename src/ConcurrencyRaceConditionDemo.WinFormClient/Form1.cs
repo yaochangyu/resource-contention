@@ -72,7 +72,7 @@ public partial class Form1 : Form
         bool isPessimistic = rbPessimistic.Checked;
         bool isOptimistic = rbOptimistic.Checked;
 
-        string modeName = isRedis ? "Redis (背景非同步快取扣點)" 
+        string modeName = isRedis ? "Redis (純 Redis 儲存)" 
             : (isPessimistic ? "Pessimistic (悲觀鎖 UPDLOCK)"
             : (isOptimistic ? "Optimistic (樂觀鎖 Version)"
             : (isSafe ? "Safe (安全原子扣點)" : "Unsafe (不安全扣點)")));

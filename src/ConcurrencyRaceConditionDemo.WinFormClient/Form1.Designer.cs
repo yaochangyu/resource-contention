@@ -121,7 +121,7 @@ partial class Form1
         this.rbRedis.Name = "rbRedis";
         this.rbRedis.Size = new System.Drawing.Size(140, 24);
         this.rbRedis.TabIndex = 2;
-        this.rbRedis.Text = "Redis (背景非同步)";
+        this.rbRedis.Text = "Redis (純 Redis 儲存)";
         // 
         // rbPessimistic
         // 
