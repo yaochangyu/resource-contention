@@ -158,15 +158,27 @@ public partial class Form1 : Form
                             $"[初始/最終] {initialQuota} -> {finalPoints}  |  " +
                             $"[成功/被拒] {successCount} / {failCount}\r\n";
 
-        if (successCount > initialQuota)
+        bool isOverdrawn = successCount > initialQuota;
+        bool isLostUpdate = successCount != pointsDeducted;
+
+        if (isOverdrawn || isLostUpdate)
         {
-            summaryText += $"⚠️ 資源競爭發生！成功次數 ({successCount}) 大於初始額度 ({initialQuota})！超扣數量：{successCount - initialQuota}";
-            Log($"⚠️ 發生超扣現象！原本只有 {initialQuota} 點，但卻成功處理了 {successCount} 個扣點任務！");
+            summaryText += "⚠️ 偵測到資源競爭！";
+            if (isOverdrawn)
+            {
+                summaryText += $"點數透支！成功次數 ({successCount}) 大於初始點數 ({initialQuota})。";
+                Log($"⚠️ 發生透支超扣！原本只有 {initialQuota} 點，但卻成功處理了 {successCount} 個扣點任務！");
+            }
+            if (isLostUpdate)
+            {
+                summaryText += $"帳目不合！成功扣點 {successCount} 次，但 DB 實際僅扣除 {pointsDeducted} 點。";
+                Log($"⚠️ 發生遺失更新（Lost Update）！成功 {successCount} 次但 DB 實際僅扣除 {pointsDeducted} 點，有 {successCount - pointsDeducted} 次更新被覆蓋！");
+            }
         }
         else
         {
-            summaryText += $"✅ 扣點運作正常，未發生超扣。";
-            Log($"✅ 沒有超扣現象。成功處理任務次數 ({successCount}) 符合額度限制。");
+            summaryText += "✅ 扣點運作正常，未發生資源競爭。";
+            Log("✅ 運作正常，沒有發生資源競爭。");
         }
 
         lblSummary.Text = summaryText;
