@@ -67,6 +67,23 @@ WHERE Id = 1 AND Points > 0;
 
 ---
 
+## 本專案的進階技術亮點
+
+為了提供更完善且符合企業級開發規範的展示，本專案在實作中加入了以下進階設計：
+
+1. **更嚴謹的資源競爭雙重判定**：
+   * 測試工具若只檢查「透支超扣（成功次數 > 初始額度）」，當初始餘額充足（例如 500 點）而併發請求較少（例如 50 次）時，便會漏判資源競爭。
+   * 因此，本工具改用**雙重條件判定**：只要滿足 **「成功次數 > 初始點數」**（透支超扣）或 **「成功次數 != 資料庫實際扣除點數」**（Lost Update / 帳目不合），即判定為發生資源競爭。這能極其清晰地展示出在 Unsafe 模式下「放行 50 次，但資料庫只扣了 2 點（其餘 48 次被更新覆蓋）」的遺失更新現象。
+2. **EF Core 原始 SQL 即時日誌記錄**：
+   * Web API 已配置 EF Core 的 `.LogTo(Console.WriteLine)` 與 `.EnableSensitiveDataLogging()`。
+   * 當您啟動 Web API 服務並進行測試時，可以直接在終端機（Console）中實時觀看到底層生成並執行的真實參數化 SQL 語句（如原子更新 `UPDATE [Members] SET [Points] = [Points] - 1 WHERE [Id] = 1 AND [Points] > 0` 以及參數具體數值），非常利於教學展示。
+3. **Rider / Visual Studio 設計器編輯支援**：
+   * 本專案的 WinForm UI 配置已全面重構為與 IDE 設計檢視器相容的標準 `Form1.Designer.cs` 排版，您可以在 Rider 或 VS 中直接開啟設計器介面進行拖拉或屬性編輯。
+4. **序列化背景寫回防範時序錯亂**：
+   * Redis 扣點後的資料庫同步採用單執行緒的背景佇列進行循序處理（`await reader.ReadAsync()`），確保寫入資料庫的點數順序與 Redis 扣除順序完全一致，避免背景平行寫入造成 Out-of-Order 的覆蓋問題。
+
+---
+
 ## 專案結構
 
 * **`src/ConcurrencyRaceConditionDemo.WebApi`**：提供測試的 Minimal API 端點。
