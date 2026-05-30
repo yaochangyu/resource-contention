@@ -11,69 +11,13 @@ public partial class Form1 : Form
 {
     private readonly HttpClient _httpClient = new HttpClient { BaseAddress = new Uri("http://localhost:5000/") };
 
-    // UI 控制項
-    private Label lblQuota = null!;
-    private NumericUpDown numQuota = null!;
-    private Label lblRequests = null!;
-    private NumericUpDown numRequests = null!;
-    private GroupBox gbMode = null!;
-    private RadioButton rbUnsafe = null!;
-    private RadioButton rbSafe = null!;
-    private Button btnRun = null!;
-    private Button btnReset = null!;
-    private TextBox txtLog = null!;
-    private Label lblSummary = null!;
-
     public Form1()
     {
         InitializeComponent();
-        InitializeComponentCustom();
-    }
-
-    private void InitializeComponentCustom()
-    {
-        this.Text = "多執行緒資源競爭 (Race Condition) 演示工具";
-        this.Size = new System.Drawing.Size(700, 550);
-        this.StartPosition = FormStartPosition.CenterScreen;
-
-        // Quota
-        lblQuota = new Label { Text = "初始點數 (Quota):", Left = 20, Top = 20, Width = 120 };
-        numQuota = new NumericUpDown { Left = 150, Top = 18, Width = 80, Minimum = 1, Maximum = 100000, Value = 10 };
-
-        // Requests
-        lblRequests = new Label { Text = "併發請求數 (Requests):", Left = 250, Top = 20, Width = 150 };
-        numRequests = new NumericUpDown { Left = 400, Top = 18, Width = 80, Minimum = 1, Maximum = 1000, Value = 50 };
-
-        // GroupBox Mode
-        gbMode = new GroupBox { Text = "模式選擇", Left = 20, Top = 60, Width = 460, Height = 60 };
-        rbUnsafe = new RadioButton { Text = "Unsafe (未防禦，點數會超扣)", Left = 10, Top = 25, Width = 210, Checked = true };
-        rbSafe = new RadioButton { Text = "Safe (有防禦，不會超扣)", Left = 230, Top = 25, Width = 210 };
-        gbMode.Controls.Add(rbUnsafe);
-        gbMode.Controls.Add(rbSafe);
-
-        // Buttons
-        btnReset = new Button { Text = "重設點數", Left = 490, Top = 18, Width = 80, Height = 25 };
-        btnReset.Click += BtnReset_Click;
-
-        btnRun = new Button { Text = "執行併發測試", Left = 490, Top = 70, Width = 170, Height = 45 };
-        btnRun.Click += BtnRun_Click;
-
-        // Summary Label
-        lblSummary = new Label { Text = "狀態: 待機中", Left = 20, Top = 135, Width = 640, Height = 45, BorderStyle = BorderStyle.Fixed3D, TextAlign = System.Drawing.ContentAlignment.MiddleLeft };
-
-        // Log TextBox
-        txtLog = new TextBox { Left = 20, Top = 190, Width = 640, Height = 300, Multiline = true, ScrollBars = ScrollBars.Vertical, ReadOnly = true };
-
-        // Add to Form
-        this.Controls.Add(lblQuota);
-        this.Controls.Add(numQuota);
-        this.Controls.Add(lblRequests);
-        this.Controls.Add(numRequests);
-        this.Controls.Add(gbMode);
-        this.Controls.Add(btnReset);
-        this.Controls.Add(btnRun);
-        this.Controls.Add(lblSummary);
-        this.Controls.Add(txtLog);
+        
+        // 繫結事件處理程序
+        this.btnReset.Click += BtnReset_Click;
+        this.btnRun.Click += BtnRun_Click;
     }
 
     private void Log(string message)
