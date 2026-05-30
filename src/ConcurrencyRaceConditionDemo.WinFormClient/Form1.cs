@@ -68,8 +68,9 @@ public partial class Form1 : Form
         int initialQuota = (int)numQuota.Value;
         int requestCount = (int)numRequests.Value;
         bool isSafe = rbSafe.Checked;
-        string modeName = isSafe ? "Safe (安全扣點)" : "Unsafe (不安全扣點)";
-        string endpoint = isSafe ? "/api/points/deduct-safe" : "/api/points/deduct-unsafe";
+        bool isRedis = rbRedis.Checked;
+        string modeName = isRedis ? "Redis (背景非同步快取扣點)" : (isSafe ? "Safe (安全原子扣點)" : "Unsafe (不安全扣點)");
+        string endpoint = isRedis ? "/api/points/deduct-redis" : (isSafe ? "/api/points/deduct-safe" : "/api/points/deduct-unsafe");
 
         Log($"=== 開始併發測試 ===");
         Log($"模式：{modeName}");
@@ -114,6 +115,12 @@ public partial class Form1 : Form
 
         Log($"併發請求發送完畢，耗時 {duration.TotalMilliseconds:F2} ms。");
 
+        if (isRedis)
+        {
+            Log("等待背景非同步同步 SQL Server (200ms)...");
+            await Task.Delay(200);
+        }
+
         // 3. 查詢資料庫最終點數
         int finalPoints = 0;
         try
@@ -146,7 +153,8 @@ public partial class Form1 : Form
         Log($"理論應扣點數：{Math.Min(initialQuota, requestCount)}");
         Log($"實際扣除點數：{pointsDeducted}");
 
-        string summaryText = $"測試結果 (模式: {(isSafe ? "Safe" : "Unsafe")})\r\n" +
+        string modeLabel = isRedis ? "Redis" : (isSafe ? "Safe" : "Unsafe");
+        string summaryText = $"測試結果 (模式: {modeLabel})\r\n" +
                             $"[初始/最終] {initialQuota} -> {finalPoints}  |  " +
                             $"[成功/被拒] {successCount} / {failCount}\r\n";
 

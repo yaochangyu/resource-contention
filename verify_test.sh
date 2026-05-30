@@ -59,6 +59,12 @@ run_concurrency_test() {
   for pid in "${pids[@]}"; do
     wait "$pid" 2>/dev/null || true
   done
+
+  # 如果是 Redis 模式，稍等 0.5 秒讓背景同步完成
+  if [ "$endpoint" = "/api/points/deduct-redis" ]; then
+    echo "等待背景非同步同步 SQL Server..."
+    sleep 0.5
+  fi
   
   # 3. 統計狀態碼
   local success_count=$(grep -c "200" "$temp_file" || true)
@@ -90,3 +96,6 @@ run_concurrency_test "/api/points/deduct-unsafe" "Unsafe (未處理資源競爭)
 
 # 執行安全扣點測試
 run_concurrency_test "/api/points/deduct-safe" "Safe (使用資料庫原子更新防禦)"
+
+# 執行 Redis 快取扣點測試 (非同步背景寫回)
+run_concurrency_test "/api/points/deduct-redis" "Redis (非同步快取扣點)"

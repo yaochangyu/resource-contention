@@ -58,21 +58,31 @@ WHERE Id = 1 AND Points > 0;
 
 ---
 
+## 解決方案：Redis 快取原子扣點（非同步背景同步）
+
+在面臨超大規模流量（例如秒殺搶購、搶票）時，直接併發存取資料庫會導致資料庫連線池塞滿與效能雪崩。此時可使用 **Redis 作為扣點核心**：
+
+* **原理**：將點數餘額存放在讀寫效能極高的記憶體資料庫 Redis 中。當請求進來時，API 執行 **Lua 腳本** 在 Redis 端以單執行緒原子化地完成「讀取 -> 判斷 -> 扣除」操作。
+* **背景同步**：Redis 扣減成功後，API 即刻回傳 `200 OK`，並將最新的餘額推入 .NET 的記憶體 Channel 佇列中。背景由單執行緒服務依序讀取佇列並寫入 SQL Server，不僅徹底隔絕了資料庫併發競爭，也將資料庫的負載減至最輕，保證資料的最終一致性（Eventual Consistency）。
+
+---
+
 ## 專案結構
 
 * **`src/ConcurrencyRaceConditionDemo.WebApi`**：提供測試的 Minimal API 端點。
-  * `POST /api/points/reset?points=X`：重設點數。
+  * `POST /api/points/reset?points=X`：重設 SQL Server 與 Redis 中的點數。
   * `POST /api/points/deduct-unsafe`：不安全扣點（SELECT -> Delay 50ms -> UPDATE），模擬並重現超扣。
   * `POST /api/points/deduct-safe`：安全扣點（使用 EF Core `ExecuteUpdateAsync` 翻譯為原子更新 SQL）。
-* **`src/ConcurrencyRaceConditionDemo.WinFormClient`**：WinForm 測試客戶端。可設定初始額度與併發請求數，並使用 `Task.WhenAll` 同時發送請求以觀察統計結果。
-* **`verify_test.sh`**：自動化驗證腳本，可在非 Windows 環境下一鍵啟動 API 並發送高併發 `curl` 請求，直接驗證防禦效果。
+  * `POST /api/points/deduct-redis`：Redis 快取扣點（Lua 原子扣點 + Channel 背景非同步序列化寫入資料庫）。
+* **`src/ConcurrencyRaceConditionDemo.WinFormClient`**：WinForm 測試客戶端。可設定初始額度與併發請求數，並支援選擇 Unsafe、Safe 與 Redis 三種模式進行測試與統計。
+* **`verify_test.sh`**：自動化驗證腳本，可在背景啟動 Web API，並發送高併發 `curl` 請求以比對 Unsafe、Safe 與 Redis 三種模式的驗證報告。
 
 ---
 
 ## 快速開始
 
-### 1. 啟動資料庫
-本專案使用 Docker Compose 啟動 SQL Server：
+### 1. 啟動服務
+本專案使用 Docker Compose 啟動 SQL Server 與 Redis 服務：
 ```bash
 docker compose up -d
 ```

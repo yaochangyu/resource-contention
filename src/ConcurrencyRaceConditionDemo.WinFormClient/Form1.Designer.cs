@@ -35,6 +35,7 @@ partial class Form1
         this.gbMode = new System.Windows.Forms.GroupBox();
         this.rbUnsafe = new System.Windows.Forms.RadioButton();
         this.rbSafe = new System.Windows.Forms.RadioButton();
+        this.rbRedis = new System.Windows.Forms.RadioButton();
         this.btnReset = new System.Windows.Forms.Button();
         this.btnRun = new System.Windows.Forms.Button();
         this.lblSummary = new System.Windows.Forms.Label();
@@ -84,6 +85,7 @@ partial class Form1
         // 
         this.gbMode.Controls.Add(this.rbUnsafe);
         this.gbMode.Controls.Add(this.rbSafe);
+        this.gbMode.Controls.Add(this.rbRedis);
         this.gbMode.Location = new System.Drawing.Point(20, 60);
         this.gbMode.Name = "gbMode";
         this.gbMode.Size = new System.Drawing.Size(460, 60);
@@ -96,18 +98,26 @@ partial class Form1
         this.rbUnsafe.Checked = true;
         this.rbUnsafe.Location = new System.Drawing.Point(10, 25);
         this.rbUnsafe.Name = "rbUnsafe";
-        this.rbUnsafe.Size = new System.Drawing.Size(210, 24);
+        this.rbUnsafe.Size = new System.Drawing.Size(140, 24);
         this.rbUnsafe.TabIndex = 0;
         this.rbUnsafe.TabStop = true;
-        this.rbUnsafe.Text = "Unsafe (未防禦，點數會超扣)";
+        this.rbUnsafe.Text = "Unsafe (超扣)";
         // 
         // rbSafe
         // 
-        this.rbSafe.Location = new System.Drawing.Point(230, 25);
+        this.rbSafe.Location = new System.Drawing.Point(160, 25);
         this.rbSafe.Name = "rbSafe";
-        this.rbSafe.Size = new System.Drawing.Size(210, 24);
+        this.rbSafe.Size = new System.Drawing.Size(140, 24);
         this.rbSafe.TabIndex = 1;
-        this.rbSafe.Text = "Safe (有防禦，不會超扣)";
+        this.rbSafe.Text = "Safe (原子更新)";
+        // 
+        // rbRedis
+        // 
+        this.rbRedis.Location = new System.Drawing.Point(310, 25);
+        this.rbRedis.Name = "rbRedis";
+        this.rbRedis.Size = new System.Drawing.Size(140, 24);
+        this.rbRedis.TabIndex = 2;
+        this.rbRedis.Text = "Redis (背景非同步)";
         // 
         // btnReset
         // 
@@ -178,6 +188,7 @@ partial class Form1
     private System.Windows.Forms.GroupBox gbMode;
     private System.Windows.Forms.RadioButton rbUnsafe;
     private System.Windows.Forms.RadioButton rbSafe;
+    private System.Windows.Forms.RadioButton rbRedis;
     private System.Windows.Forms.Button btnRun;
     private System.Windows.Forms.Button btnReset;
     private System.Windows.Forms.Label lblSummary;

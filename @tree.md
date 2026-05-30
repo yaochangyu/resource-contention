@@ -3,7 +3,8 @@
 ```
 /mnt/d/lab/resource-contention
 ├── .archive
-│   └── concurrency_race_condition_demo.plan.md
+│   ├── concurrency_race_condition_demo.plan.md
+│   └── redis_concurrency_demo.plan.md
 ├── @tree.md
 ├── .gitignore
 ├── README.md
