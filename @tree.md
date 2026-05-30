@@ -6,6 +6,7 @@
 │   ├── concurrency_race_condition_demo.plan.md
 │   ├── fix_concurrency_detection.plan.md
 │   ├── log_ef_raw_sql.plan.md
+│   ├── pessimistic_optimistic_concurrency.plan.md
 │   ├── redis_concurrency_demo.plan.md
 │   └── update_readme_status.plan.md
 ├── @tree.md

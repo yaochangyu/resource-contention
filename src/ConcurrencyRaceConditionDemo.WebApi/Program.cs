@@ -25,10 +25,11 @@ var dbUpdateChannel = System.Threading.Channels.Channel.CreateUnbounded<int>(
 
 var app = builder.Build();
 
-// Ensure Database is created and seeded
+// Ensure Database is created and seeded (先刪除後建立，確保結構變更時能順利更新 schema)
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.EnsureDeleted();
     db.Database.EnsureCreated();
 }
 
@@ -74,12 +75,13 @@ app.MapPost("/api/points/reset", async (int points, AppDbContext db, IConnection
     var member = await db.Members.FindAsync(1);
     if (member == null)
     {
-        member = new Member { Id = 1, Points = points };
+        member = new Member { Id = 1, Points = points, Version = 1 };
         db.Members.Add(member);
     }
     else
     {
         member.Points = points;
+        member.Version = 1;
     }
     await db.SaveChangesAsync();
 
@@ -118,6 +120,8 @@ app.MapPost("/api/points/deduct-safe", async (AppDbContext db) =>
     {
         return Results.BadRequest("Points run out");
     }
+    // 故意延遲 50ms，放大 Race Condition 區間，讓併發超扣更容易重現
+    await Task.Delay(50);
 
     return Results.Ok();
 });
@@ -159,6 +163,65 @@ app.MapPost("/api/points/deduct-redis", async (IConnectionMultiplexer redis) =>
     dbUpdateChannel.Writer.TryWrite(result);
 
     return Results.Ok(new { RemainingPoints = result });
+});
+
+app.MapPost("/api/points/deduct-pessimistic", async (AppDbContext db) =>
+{
+    // 開啟交易以實行鎖定
+    using var tx = await db.Database.BeginTransactionAsync();
+    try
+    {
+        // 利用 FromSqlRaw 執行 UPDLOCK, HOLDLOCK 強制行級鎖定
+        var member = await db.Members
+            .FromSqlRaw("SELECT * FROM Members WITH (UPDLOCK, HOLDLOCK) WHERE Id = 1")
+            .SingleOrDefaultAsync();
+
+        if (member == null || member.Points <= 0)
+        {
+            return Results.BadRequest("Points run out");
+        }
+
+        // 故意延遲 50ms 放大併發時間，可便於觀察鎖定排隊行為
+        await Task.Delay(50);
+
+        member.Points -= 1;
+        await db.SaveChangesAsync();
+        await tx.CommitAsync();
+
+        return Results.Ok(new { member.Points });
+    }
+    catch (Exception)
+    {
+        await tx.RollbackAsync();
+        throw;
+    }
+});
+
+app.MapPost("/api/points/deduct-optimistic", async (AppDbContext db) =>
+{
+    var member = await db.Members.FindAsync(1);
+    if (member == null || member.Points <= 0)
+    {
+        return Results.BadRequest("Points run out");
+    }
+
+    // 故意延遲 50ms 放大併發時間，使樂觀鎖衝突更容易發生
+    await Task.Delay(50);
+
+    // 扣點並手動遞增自訂 Version 版本號
+    member.Points -= 1;
+    member.Version += 1;
+
+    try
+    {
+        await db.SaveChangesAsync();
+        return Results.Ok(new { member.Points });
+    }
+    catch (DbUpdateConcurrencyException)
+    {
+        // 版本號衝突
+        return Results.BadRequest("Optimistic concurrency conflict");
+    }
 });
 
 app.Run();

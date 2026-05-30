@@ -99,3 +99,9 @@ run_concurrency_test "/api/points/deduct-safe" "Safe (使用資料庫原子更�
 
 # 執行 Redis 快取扣點測試 (非同步背景寫回)
 run_concurrency_test "/api/points/deduct-redis" "Redis (非同步快取扣點)"
+
+# 執行悲觀鎖扣點測試 (UPDLOCK)
+run_concurrency_test "/api/points/deduct-pessimistic" "Pessimistic (使用悲觀鎖防禦)"
+
+# 執行樂觀鎖扣點測試 (Version)
+run_concurrency_test "/api/points/deduct-optimistic" "Optimistic (使用樂觀鎖防禦)"

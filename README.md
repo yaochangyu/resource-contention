@@ -67,6 +67,24 @@ WHERE Id = 1 AND Points > 0;
 
 ---
 
+## 解決方案：資料庫悲觀鎖（Pessimistic Locking）
+
+如果業務邏輯極度複雜，無法單純用一行 SQL 原子更新解決，但又必須保證絕對一致，此時可以使用悲觀鎖：
+
+* **原理**：使用資料庫交易（Transaction），並在讀取資料時加上 `WITH (UPDLOCK, HOLDLOCK)` 提示（以 SQL Server 為例）。這會鎖定該筆資料行，直到交易結束。其他執行緒若想讀取或修改同一筆資料，必須排隊等待該交易提交（Commit）或回滾（Rollback）。
+* **缺點**：在高併發下，因為鎖定時間變長且多個執行緒排隊，會造成 API 回應時間變長，且可能導致資料庫連線數耗盡或死結（Deadlock）。
+
+---
+
+## 解決方案：資料庫樂觀鎖（Optimistic Locking）
+
+樂觀鎖適用於「讀多寫少」且「衝突機率低」的場景。它不使用資料庫鎖，而是透過版本號（Version / RowVersion）機制來偵測衝突：
+
+* **原理**：在資料表中新增一個代表版本號的欄位（如 `Version`）。讀取資料時一併讀取版本號，寫回時則在條件中帶上該版本號（如 `UPDATE ... WHERE Id = 1 AND Version = @OldVersion`），並將版本號加一。若版本號在讀取與寫入之間已被其他執行緒修改，更新將會失敗，EF Core 會拋出 `DbUpdateConcurrencyException`，我們可依此判定為衝突並拒絕或重試。
+* **特性**：在高併發下衝突率極高，絕大多數衝突的請求會直接失敗，雖然保護了資料庫，但會產生大量的失敗回應。
+
+---
+
 ## 本專案的進階技術亮點
 
 為了提供更完善且符合企業級開發規範的展示，本專案在實作中加入了以下進階設計：
@@ -91,8 +109,10 @@ WHERE Id = 1 AND Points > 0;
   * `POST /api/points/deduct-unsafe`：不安全扣點（SELECT -> Delay 50ms -> UPDATE），模擬並重現超扣。
   * `POST /api/points/deduct-safe`：安全扣點（使用 EF Core `ExecuteUpdateAsync` 翻譯為原子更新 SQL）。
   * `POST /api/points/deduct-redis`：Redis 快取扣點（Lua 原子扣點 + Channel 背景非同步序列化寫入資料庫）。
-* **`src/ConcurrencyRaceConditionDemo.WinFormClient`**：WinForm 測試客戶端。可設定初始額度與併發請求數，並支援選擇 Unsafe、Safe 與 Redis 三種模式進行測試與統計。
-* **`verify_test.sh`**：自動化驗證腳本，可在背景啟動 Web API，並發送高併發 `curl` 請求以比對 Unsafe、Safe 與 Redis 三種模式的驗證報告。
+  * `POST /api/points/deduct-pessimistic`：悲觀鎖扣點（SQL 交易搭配 `WITH (UPDLOCK, HOLDLOCK)` 行級鎖定強制排隊）。
+  * `POST /api/points/deduct-optimistic`：樂觀鎖扣點（透過 `[ConcurrencyCheck]` 版本號檢查，衝突時丟出並處理 `DbUpdateConcurrencyException`）。
+* **`src/ConcurrencyRaceConditionDemo.WinFormClient`**：WinForm 測試客戶端。可設定初始額度與併發請求數，並支援選擇五種併發防禦模式進行壓測與統計。
+* **`verify_test.sh`**：自動化驗證腳本，可在背景啟動 Web API，並發送高併發 `curl` 請求以比對五種模式的驗證報告。
 
 ---
 
@@ -105,10 +125,11 @@ docker compose up -d
 ```
 
 ### 2. 執行自動化驗證測試 (Linux/WSL)
-專案根目錄下有自動化腳本，會自動編譯、啟動 Web API，並發送 50 個併發請求以呈現 Unsafe 與 Safe 的結果對比：
+專案根目錄下有自動化腳本，會自動編譯、啟動 Web API，並發送 50 個併發請求以呈現五種模式的結果對比：
 ```bash
 ./verify_test.sh
 ```
 
 ### 3. 執行 WinForm 介面測試 (Windows)
 您可以在 Windows 環境下使用 Visual Studio 或 `dotnet run` 啟動 `WinFormClient` 進行視覺化展示。
+

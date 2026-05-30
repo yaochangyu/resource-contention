@@ -17,7 +17,7 @@ public class AppDbContext : DbContext
 
         // 初始化種子資料，讓測試端點好操作
         modelBuilder.Entity<Member>().HasData(
-            new Member { Id = 1, Points = 0 }
+            new Member { Id = 1, Points = 0, Version = 1 }
         );
     }
 }

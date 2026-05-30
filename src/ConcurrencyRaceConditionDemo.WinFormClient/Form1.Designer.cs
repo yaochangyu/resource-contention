@@ -36,6 +36,8 @@ partial class Form1
         this.rbUnsafe = new System.Windows.Forms.RadioButton();
         this.rbSafe = new System.Windows.Forms.RadioButton();
         this.rbRedis = new System.Windows.Forms.RadioButton();
+        this.rbPessimistic = new System.Windows.Forms.RadioButton();
+        this.rbOptimistic = new System.Windows.Forms.RadioButton();
         this.btnReset = new System.Windows.Forms.Button();
         this.btnRun = new System.Windows.Forms.Button();
         this.lblSummary = new System.Windows.Forms.Label();
@@ -86,9 +88,11 @@ partial class Form1
         this.gbMode.Controls.Add(this.rbUnsafe);
         this.gbMode.Controls.Add(this.rbSafe);
         this.gbMode.Controls.Add(this.rbRedis);
+        this.gbMode.Controls.Add(this.rbPessimistic);
+        this.gbMode.Controls.Add(this.rbOptimistic);
         this.gbMode.Location = new System.Drawing.Point(20, 60);
         this.gbMode.Name = "gbMode";
-        this.gbMode.Size = new System.Drawing.Size(460, 60);
+        this.gbMode.Size = new System.Drawing.Size(460, 95);
         this.gbMode.TabIndex = 4;
         this.gbMode.TabStop = false;
         this.gbMode.Text = "模式選擇";
@@ -119,6 +123,22 @@ partial class Form1
         this.rbRedis.TabIndex = 2;
         this.rbRedis.Text = "Redis (背景非同步)";
         // 
+        // rbPessimistic
+        // 
+        this.rbPessimistic.Location = new System.Drawing.Point(10, 60);
+        this.rbPessimistic.Name = "rbPessimistic";
+        this.rbPessimistic.Size = new System.Drawing.Size(140, 24);
+        this.rbPessimistic.TabIndex = 3;
+        this.rbPessimistic.Text = "悲觀鎖 (UPDLOCK)";
+        // 
+        // rbOptimistic
+        // 
+        this.rbOptimistic.Location = new System.Drawing.Point(160, 60);
+        this.rbOptimistic.Name = "rbOptimistic";
+        this.rbOptimistic.Size = new System.Drawing.Size(140, 24);
+        this.rbOptimistic.TabIndex = 4;
+        this.rbOptimistic.Text = "樂觀鎖 (Version)";
+        // 
         // btnReset
         // 
         this.btnReset.Location = new System.Drawing.Point(490, 18);
@@ -138,7 +158,7 @@ partial class Form1
         // lblSummary
         // 
         this.lblSummary.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
-        this.lblSummary.Location = new System.Drawing.Point(20, 135);
+        this.lblSummary.Location = new System.Drawing.Point(20, 165);
         this.lblSummary.Name = "lblSummary";
         this.lblSummary.Size = new System.Drawing.Size(640, 45);
         this.lblSummary.TabIndex = 7;
@@ -147,12 +167,12 @@ partial class Form1
         // 
         // txtLog
         // 
-        this.txtLog.Location = new System.Drawing.Point(20, 190);
+        this.txtLog.Location = new System.Drawing.Point(20, 220);
         this.txtLog.Multiline = true;
         this.txtLog.Name = "txtLog";
         this.txtLog.ReadOnly = true;
         this.txtLog.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-        this.txtLog.Size = new System.Drawing.Size(640, 300);
+        this.txtLog.Size = new System.Drawing.Size(640, 270);
         this.txtLog.TabIndex = 8;
         // 
         // Form1
@@ -189,6 +209,8 @@ partial class Form1
     private System.Windows.Forms.RadioButton rbUnsafe;
     private System.Windows.Forms.RadioButton rbSafe;
     private System.Windows.Forms.RadioButton rbRedis;
+    private System.Windows.Forms.RadioButton rbPessimistic;
+    private System.Windows.Forms.RadioButton rbOptimistic;
     private System.Windows.Forms.Button btnRun;
     private System.Windows.Forms.Button btnReset;
     private System.Windows.Forms.Label lblSummary;

@@ -69,8 +69,18 @@ public partial class Form1 : Form
         int requestCount = (int)numRequests.Value;
         bool isSafe = rbSafe.Checked;
         bool isRedis = rbRedis.Checked;
-        string modeName = isRedis ? "Redis (背景非同步快取扣點)" : (isSafe ? "Safe (安全原子扣點)" : "Unsafe (不安全扣點)");
-        string endpoint = isRedis ? "/api/points/deduct-redis" : (isSafe ? "/api/points/deduct-safe" : "/api/points/deduct-unsafe");
+        bool isPessimistic = rbPessimistic.Checked;
+        bool isOptimistic = rbOptimistic.Checked;
+
+        string modeName = isRedis ? "Redis (背景非同步快取扣點)" 
+            : (isPessimistic ? "Pessimistic (悲觀鎖 UPDLOCK)"
+            : (isOptimistic ? "Optimistic (樂觀鎖 Version)"
+            : (isSafe ? "Safe (安全原子扣點)" : "Unsafe (不安全扣點)")));
+
+        string endpoint = isRedis ? "/api/points/deduct-redis" 
+            : (isPessimistic ? "/api/points/deduct-pessimistic"
+            : (isOptimistic ? "/api/points/deduct-optimistic"
+            : (isSafe ? "/api/points/deduct-safe" : "/api/points/deduct-unsafe")));
 
         Log($"=== 開始併發測試 ===");
         Log($"模式：{modeName}");
@@ -153,7 +163,7 @@ public partial class Form1 : Form
         Log($"理論應扣點數：{Math.Min(initialQuota, requestCount)}");
         Log($"實際扣除點數：{pointsDeducted}");
 
-        string modeLabel = isRedis ? "Redis" : (isSafe ? "Safe" : "Unsafe");
+        string modeLabel = isRedis ? "Redis" : (isPessimistic ? "Pessimistic" : (isOptimistic ? "Optimistic" : (isSafe ? "Safe" : "Unsafe")));
         string summaryText = $"測試結果 (模式: {modeLabel})\r\n" +
                             $"[初始/最終] {initialQuota} -> {finalPoints}  |  " +
                             $"[成功/被拒] {successCount} / {failCount}\r\n";
