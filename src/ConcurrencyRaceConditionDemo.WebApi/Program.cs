@@ -79,8 +79,8 @@ app.MapPost("/api/points/deduct-unsafe", async (AppDbContext db) =>
         return Results.BadRequest("Points run out");
     }
 
-    // 故意延遲 50ms，放大 Race Condition 區間，讓併發超扣更容易重現
-    await Task.Delay(50);
+    // 模擬處理事務，隨機延遲 10ms - 100ms
+    await Task.Delay(Random.Shared.Next(10, 100));
 
     member.Points -= 1;
     await db.SaveChangesAsync();
@@ -99,8 +99,8 @@ app.MapPost("/api/points/deduct-safe", async (AppDbContext db) =>
     {
         return Results.BadRequest("Points run out");
     }
-    // 故意延遲 50ms，放大 Race Condition 區間，讓併發超扣更容易重現
-    await Task.Delay(50);
+    // 模擬處理事務，隨機延遲 10ms - 100ms
+    await Task.Delay(Random.Shared.Next(10, 100));
 
     return Results.Ok();
 });
@@ -137,6 +137,8 @@ app.MapPost("/api/points/deduct-redis", async (IConnectionMultiplexer redis) =>
     {
         return Results.BadRequest("Points run out");
     }
+    // 模擬處理事務，隨機延遲 10ms - 100ms
+    await Task.Delay(Random.Shared.Next(10, 100));
 
     return Results.Ok(new { RemainingPoints = result });
 });
@@ -157,8 +159,8 @@ app.MapPost("/api/points/deduct-pessimistic", async (AppDbContext db) =>
             return Results.BadRequest("Points run out");
         }
 
-        // 故意延遲 50ms 放大併發時間，可便於觀察鎖定排隊行為
-        await Task.Delay(50);
+        // 模擬處理事務，隨機延遲 10ms - 100ms
+        await Task.Delay(Random.Shared.Next(10, 100));
 
         member.Points -= 1;
         await db.SaveChangesAsync();
@@ -181,8 +183,8 @@ app.MapPost("/api/points/deduct-optimistic", async (AppDbContext db) =>
         return Results.BadRequest("Points run out");
     }
 
-    // 故意延遲 50ms 放大併發時間，使樂觀鎖衝突更容易發生
-    await Task.Delay(50);
+    // 模擬處理事務，隨機延遲 10ms - 100ms
+    await Task.Delay(Random.Shared.Next(10, 100));
 
     // 扣點並手動遞增自訂 Version 版本號
     member.Points -= 1;

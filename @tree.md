@@ -8,6 +8,7 @@
 │   ├── log_ef_raw_sql.plan.md
 │   ├── pessimistic_optimistic_concurrency.plan.md
 │   ├── pure_redis_storage.plan.md
+│   ├── random_delay_simulation.plan.md
 │   ├── redis_concurrency_demo.plan.md
 │   └── update_readme_status.plan.md
 ├── @tree.md
