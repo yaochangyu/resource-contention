@@ -1,0 +1,6 @@
+@ConcurrencyRaceConditionDemo.WebApi_HostAddress = http://localhost:5274
+
+GET {{ConcurrencyRaceConditionDemo.WebApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

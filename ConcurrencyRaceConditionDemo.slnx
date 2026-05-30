@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ConcurrencyRaceConditionDemo.WebApi/ConcurrencyRaceConditionDemo.WebApi.csproj" />
+    <Project Path="src/ConcurrencyRaceConditionDemo.WinFormClient/ConcurrencyRaceConditionDemo.WinFormClient.csproj" />
+  </Folder>
+</Solution>
